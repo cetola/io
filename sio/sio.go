@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/everlook/io/tio"
-	"github.com/everlook/serial"
+	"github.com/jmore-reachtech/io/tio"
+	"github.com/jmore-reachtech/serial"
 	"io"
 	"log"
 	"net"
