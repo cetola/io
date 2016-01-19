@@ -1,7 +1,6 @@
 package tio
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -19,13 +18,10 @@ func NewTio(id string) *Tio {
 }
 
 func (t *Tio) ItemAdd(key string, value string) {
-	fmt.Printf("adding item: '%s':'%s'\n", key, value)
-
 	t.mapping[key] = value
 }
 
 func (t *Tio) ItemFind(key string) (string, bool) {
-	fmt.Println("lookging up ", key)
 	v, exists := t.mapping[key]
 	return v, exists
 }

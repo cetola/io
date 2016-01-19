@@ -27,11 +27,9 @@ var mapMicro = tio.NewTio("micro")
 // serial read, we run this in a goroutine so we can block on read
 // on data read send through the channel
 func serialRead(p *serial.Port, ch chan string) {
-	fmt.Println("read serial port")
 	for {
 		buf := make([]byte, 128)
 		n, err := p.Read(buf)
-		fmt.Println("serial read", n)
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
@@ -46,8 +44,6 @@ func serialRead(p *serial.Port, ch chan string) {
 // data comes in from the socket over the channel translate the message
 // and write to serial port
 func handlePort(p *serial.Port, ch chan string) {
-	fmt.Println("handle serial port")
-
 	readCh := make(chan string)
 
 	go serialRead(p, readCh)
@@ -56,7 +52,6 @@ func handlePort(p *serial.Port, ch chan string) {
 		select {
 		case s := <-ch:
 			{
-				fmt.Println("socket has message")
 				// map gui -> micro
 				trans := mapGui.ItemTranslate(s)
 				_, err := p.Write([]byte(trans))
@@ -66,13 +61,10 @@ func handlePort(p *serial.Port, ch chan string) {
 			}
 		case r := <-readCh:
 			{
-				fmt.Println("serial has message: ", r)
 				ch <- fmt.Sprint(r)
 			}
 		case <-time.After(timeout):
-			{
-				continue
-			}
+			continue
 		}
 	}
 }
@@ -84,13 +76,13 @@ func accept(listener *net.UnixListener, ch chan string) {
 		// we get a socket connection so we don't block the channel
 		select {
 		case <-ch:
-			fmt.Println("eating serial data")
+			log.Println("eating serial data")
 		default:
 		}
 
 		// set timeout to fall through so we can check the channel for
 		// serial data
-		listener.SetDeadline(time.Now().Add(timeout))
+		listener.SetDeadline(time.Now().Add(100 * time.Millisecond))
 		conn, err := listener.AcceptUnix()
 		if nil != err {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -98,7 +90,6 @@ func accept(listener *net.UnixListener, ch chan string) {
 			}
 			log.Println(err)
 		} else {
-			fmt.Println("client connected")
 			// we have connection, call handle, we only handle one connection
 			// so no goroutine here
 			handleSocket(conn, ch)
@@ -110,7 +101,7 @@ func accept(listener *net.UnixListener, ch chan string) {
 // on data read send through the channel
 func socketRead(conn *net.UnixConn, ch chan string) {
 	for {
-		buf := make([]byte, 4096)
+		buf := make([]byte, 512)
 		if _, err := conn.Read(buf); nil != err {
 			log.Fatal(err)
 		}
@@ -123,8 +114,6 @@ func socketRead(conn *net.UnixConn, ch chan string) {
 // to the channel so the serial port can see it. When data comes in over the
 // channel translate the message and write it to the socket
 func handleSocket(conn *net.UnixConn, ch chan string) {
-	fmt.Println("serving connection")
-
 	defer conn.Close()
 
 	readCh := make(chan string)
@@ -135,7 +124,6 @@ func handleSocket(conn *net.UnixConn, ch chan string) {
 		select {
 		case s := <-ch:
 			{
-				fmt.Println("serial channel has message:", s)
 				// map micro -> gui
 				trans := mapMicro.ItemTranslate(s)
 				_, err := conn.Write([]byte(trans))
@@ -145,7 +133,6 @@ func handleSocket(conn *net.UnixConn, ch chan string) {
 			}
 		case r := <-readCh:
 			{
-				fmt.Println("serial has message: ", r)
 				ch <- fmt.Sprint(r)
 			}
 		case <-time.After(timeout):
@@ -171,11 +158,11 @@ func initMapping() {
 	for scanner.Scan() {
 		var line = scanner.Text()
 		if len(line) == 0 {
-			fmt.Println("no line, done")
+			log.Println("no line, done")
 			break
 		}
 		if string(line[0]) == "#" || string(line[0]) == "/" {
-			fmt.Println("skipping comment")
+			log.Println("skipping comment")
 			continue
 		}
 
@@ -217,8 +204,6 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Serial Port Example")
-
 	c := &serial.Config{
 		Name:        "/dev/ttymxc1",
 		Baud:        115200,
