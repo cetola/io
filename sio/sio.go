@@ -170,6 +170,10 @@ func initMapping() {
 	// read each line and parse out the mapping
 	for scanner.Scan() {
 		var line = scanner.Text()
+		if len(line) == 0 {
+			fmt.Println("no line, done")
+			break
+		}
 		if string(line[0]) == "#" || string(line[0]) == "/" {
 			fmt.Println("skipping comment")
 			continue
@@ -216,7 +220,7 @@ func main() {
 	fmt.Println("Serial Port Example")
 
 	c := &serial.Config{
-		Name:        "/dev/ttySP1",
+		Name:        "/dev/ttymxc1",
 		Baud:        115200,
 		ReadTimeout: time.Millisecond * 500,
 	}
