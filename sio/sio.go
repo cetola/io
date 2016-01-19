@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"github.com/jmore-reachtech/io/tio"
 	"github.com/jmore-reachtech/serial"
@@ -161,11 +162,9 @@ func initMapping() {
 	for scanner.Scan() {
 		var line = scanner.Text()
 		if len(line) == 0 {
-			log.Println("no line, done")
 			break
 		}
 		if string(line[0]) == "#" || string(line[0]) == "/" {
-			log.Println("skipping comment")
 			continue
 		}
 
@@ -207,9 +206,13 @@ func init() {
 }
 
 func main() {
+	ttyPtr := flag.String("tty", "/dev/ttymxc1", "Open tty device")
+	baudPtr := flag.Int("baud", 115200, "Set baud rate")
+	flag.Parse()
+
 	c := &serial.Config{
-		Name:        "/dev/ttymxc1",
-		Baud:        115200,
+		Name:        *ttyPtr,
+		Baud:        *baudPtr,
 		ReadTimeout: time.Millisecond * 500,
 	}
 
