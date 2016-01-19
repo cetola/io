@@ -102,11 +102,14 @@ func accept(listener *net.UnixListener, ch chan string) {
 func socketRead(conn *net.UnixConn, ch chan string) {
 	for {
 		buf := make([]byte, 512)
-		if _, err := conn.Read(buf); nil != err {
+		n, err := conn.Read(buf)
+		if nil != err {
 			log.Fatal(err)
 		}
 
-		ch <- fmt.Sprint(string(buf))
+		if n > 0 {
+			ch <- fmt.Sprint(string(buf[:n]))
+		}
 	}
 }
 
