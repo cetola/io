@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/jmore-reachtech/io/tio"
-	"github.com/jmore-reachtech/serial"
 	"io"
 	"log"
 	"net"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/jmore-reachtech/io/tio"
+	"github.com/jmore-reachtech/serial"
 )
 
 // channel timeout used with select
@@ -27,15 +28,15 @@ var mapMicro = tio.NewTio("micro")
 
 // serial read, we run this in a goroutine so we can block on read
 // on data read send through the channel
-func serialRead(p *serial.Port, ch chan string) {
+func serialRead(p *serial.Port, ch chan []byte) {
+	buf := make([]byte, 256)
 	for {
-		buf := make([]byte, 128)
 		n, err := p.Read(buf)
 		if err != nil && err != io.EOF {
 			log.Fatal(err)
 		}
 		if n > 0 {
-			ch <- fmt.Sprint(string(buf[:n]))
+			ch <- buf[:n]
 		}
 	}
 }
@@ -44,8 +45,8 @@ func serialRead(p *serial.Port, ch chan string) {
 // the serial port write it to the channel for the socket to see. When
 // data comes in from the socket over the channel translate the message
 // and write to serial port
-func handlePort(p *serial.Port, ch chan string) {
-	readCh := make(chan string)
+func handlePort(p *serial.Port, ch chan []byte) {
+	readCh := make(chan []byte)
 
 	go serialRead(p, readCh)
 
@@ -54,7 +55,7 @@ func handlePort(p *serial.Port, ch chan string) {
 		case s := <-ch:
 			{
 				// map gui -> micro
-				trans := mapGui.ItemTranslate(s)
+				trans := mapGui.ItemTranslate(string(s))
 				_, err := p.Write([]byte(trans))
 				if err != nil {
 					fmt.Println(err)
@@ -62,7 +63,7 @@ func handlePort(p *serial.Port, ch chan string) {
 			}
 		case r := <-readCh:
 			{
-				ch <- fmt.Sprint(r)
+				ch <- r
 			}
 		case <-time.After(timeout):
 			continue
@@ -71,7 +72,7 @@ func handlePort(p *serial.Port, ch chan string) {
 }
 
 // listen for gui client to connect to our socket
-func accept(listener *net.UnixListener, ch chan string) {
+func accept(listener *net.UnixListener, ch chan []byte) {
 	for {
 		// we are going to eat the serial data until
 		// we get a socket connection so we don't block the channel
@@ -100,16 +101,16 @@ func accept(listener *net.UnixListener, ch chan string) {
 
 // socket read, we run this in a goroutine so we can block on read
 // on data read send through the channel
-func socketRead(conn *net.UnixConn, ch chan string) {
+func socketRead(conn *net.UnixConn, ch chan []byte) {
+	buf := make([]byte, 512)
 	for {
-		buf := make([]byte, 512)
 		n, err := conn.Read(buf)
 		if nil != err {
 			log.Fatal(err)
 		}
 
 		if n > 0 {
-			ch <- fmt.Sprint(string(buf[:n]))
+			ch <- buf[:n]
 		}
 	}
 }
@@ -117,10 +118,10 @@ func socketRead(conn *net.UnixConn, ch chan string) {
 // handle the socket connection. When data comes in on the socket write it
 // to the channel so the serial port can see it. When data comes in over the
 // channel translate the message and write it to the socket
-func handleSocket(conn *net.UnixConn, ch chan string) {
+func handleSocket(conn *net.UnixConn, ch chan []byte) {
 	defer conn.Close()
 
-	readCh := make(chan string)
+	readCh := make(chan []byte)
 
 	go socketRead(conn, readCh)
 
@@ -129,7 +130,7 @@ func handleSocket(conn *net.UnixConn, ch chan string) {
 		case s := <-ch:
 			{
 				// map micro -> gui
-				trans := mapMicro.ItemTranslate(s)
+				trans := mapMicro.ItemTranslate(string(s))
 				_, err := conn.Write([]byte(trans))
 				if err != nil {
 					fmt.Println(err)
@@ -137,7 +138,7 @@ func handleSocket(conn *net.UnixConn, ch chan string) {
 			}
 		case r := <-readCh:
 			{
-				ch <- fmt.Sprint(r)
+				ch <- r
 			}
 		case <-time.After(timeout):
 			continue
@@ -218,7 +219,7 @@ func main() {
 
 	// this is the channel that moves data from the serial and socket
 	// goroutines
-	ch := make(chan string)
+	ch := make(chan []byte)
 
 	s, err := serial.OpenPort(c)
 	if err != nil {
